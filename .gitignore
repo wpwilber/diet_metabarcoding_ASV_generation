@@ -1,0 +1,8 @@
+.snakemake/
+fastq/*
+!fastq/.gitkeep
+.Rproj.user
+dada2/*
+.Rhistory
+logs/*
+trim_clean_qc/*

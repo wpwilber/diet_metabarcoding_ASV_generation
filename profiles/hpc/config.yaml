@@ -1,0 +1,8 @@
+executor: cluster-generic
+default_resources:
+  threads: 2 
+cluster-generic-submit-cmd: "qsub -M wwilber@nd.edu -m abe  -N {rule} -q long -pe smp {threads} -V -o logs/{rule}.out -e logs/{rule}.err -cwd"
+use-conda: true
+conda-prefix: "/users/$USER/snakemake_envs"
+latency-wait: 60
+
