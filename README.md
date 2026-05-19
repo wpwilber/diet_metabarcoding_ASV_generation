@@ -1,4 +1,4 @@
-This is the final development build for the diet metabarcoding 24480 pipeline. Unlike earlier versions of this pipeline, this project only handles preprocessing of sequenced data through ASV generation without taxonomic assignment.
+This is a component of the final pipeline for handling data from the diet metabarcoding 24480 project. Unlike earlier versions of this pipeline, this project only handles preprocessing of sequenced data through ASV generation without taxonomic assignment.
 
 Reproducing this analysis requires Conda and a Unix environment.
 
