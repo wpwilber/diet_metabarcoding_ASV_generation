@@ -18,7 +18,9 @@ SAMPLES = glob_wildcards("fastq/{sample}_R1_001.fastq.gz").sample
 rule all:
     input:
         expand("trim_clean_qc/trimmed/{sample}_{amp}_{R}.primertrim.fastq.gz", sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
-        expand("trim_clean_qc/trimmed_reports/{sample}_{amp}_cutadapt.txt", sample=SAMPLES, amp=["ITS1","trnL"])
+        expand("trim_clean_qc/trimmed_reports/{sample}_{amp}_cutadapt.txt", sample=SAMPLES, amp=["ITS1","trnL"]),
+        expand("trim_clean_qc/qc/{sample}_{amp}_{R}.primertrim_fastqc.html", sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
+        expand("trim_clean_qc/qc/{sample}_{amp}_{R}.primertrim_fastqc.zip", sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"])
 ############################################
 # DEMULTIPLEXING
 ############################################
@@ -60,7 +62,7 @@ rule demux_by_primer:
 ############################################
 # TRIMMING
 ############################################
-# This rule trims primers from the forward and reverse reads using identical error allowance as was permitted by demuxing (10% error for each primer and unanchored primer locations). Because the target amplicons are short, targets are sequenced beyond the length of the amplicon. To isolate the amplicon, I trim from the forward primer to the reverse complement of the reverse primer on R1, and from the reverse primer to the reverse complement of the forward primer on R2. Reads that do not contain both primers at the allowed error rate are discarded. Additionally, strict N filtering is applied so that variable regions with ambiguous bases are filtered from the data set. N filtering occurs after trimming so that sequences are not discarded on the basis of low quality tails. Filtering and trimming results for each sample can be found in trim_clean_qc/trimmed_reports. 
+# This rule trims primers from the forward and reverse reads using identical error allowance as was permitted by demuxing (10% error for each primer and unanchored primer locations). Because the target amplicons are short, targets are sequenced beyond the length of the amplicon. To isolate the amplicon, I trim from the forward primer to the reverse complement of the reverse primer on R1, and from the reverse primer to the reverse complement of the forward primer on R2. Reads that do not contain both primers at the allowed error rate are discarded. Strict N filtering is applied so that variable regions with ambiguous bases are filtered from the data set. A modest minimum length is also applied that helps to remove a few outlying erroneous reads that were identified during quality assessment. Filtering occurs after trimming so that sequences are not discarded on the basis of low quality tails and real biological variation in target amplicon length is preserved. Quality filtering is not handled here and is instead handled by DADA2 during ASV inference as this information may improve DADA2's results. Filtering and trimming results for each sample can be found in trim_clean_qc/trimmed_reports. 
 rule trim_primers_cutadapt:
     conda: "envs/cutadapt.yaml"
     input:
@@ -75,7 +77,8 @@ rule trim_primers_cutadapt:
         F = lambda wc: {"ITS1": ITS1_F, "trnL": trnL_F}[wc.amp],
         R = lambda wc: {"ITS1": ITS1_R, "trnL": trnL_R}[wc.amp],
         F_RC = lambda wc: {"ITS1": ITS1_F_RC, "trnL": trnL_F_RC}[wc.amp],
-        R_RC = lambda wc: {"ITS1": ITS1_R_RC, "trnL": trnL_R_RC}[wc.amp]
+        R_RC = lambda wc: {"ITS1": ITS1_R_RC, "trnL": trnL_R_RC}[wc.amp],
+        min_len = lambda wc: {"ITS1": 50, "trnL": 10}[wc.amp]
     shell:
         r"""
         mkdir -p trim_clean_qc/trimmed trim_clean_qc/trimmed_reports
@@ -87,8 +90,29 @@ rule trim_primers_cutadapt:
             -G "{params.R}...{params.F_RC}" \
             --discard-untrimmed \
             --max-n 0 \
+            --minimum-length {params.min_len} \
             -o {output.r1_trim} \
             -p {output.r2_trim} \
             {input.r1} {input.r2} \
             > {output.report} 2>&1
+        """
+
+############################################
+# QUALITY REPORTING
+############################################
+# This rule runs fastqc on trimmed sequences for troubleshooting before delivering sequences to DADA2.
+rule fastqc_final:
+    conda: "envs/fastqc.yaml"
+    input:
+        r1 = "trim_clean_qc/trimmed/{sample}_{amp}_R1.primertrim.fastq.gz",
+        r2 = "trim_clean_qc/trimmed/{sample}_{amp}_R2.primertrim.fastq.gz"
+    output:
+        "trim_clean_qc/qc/{sample}_{amp}_R1.primertrim_fastqc.html",
+        "trim_clean_qc/qc/{sample}_{amp}_R1.primertrim_fastqc.zip",
+        "trim_clean_qc/qc/{sample}_{amp}_R2.primertrim_fastqc.html",
+        "trim_clean_qc/qc/{sample}_{amp}_R2.primertrim_fastqc.zip"
+    threads: 2
+    shell:
+        r"""
+        fastqc --threads {threads} --outdir trim_clean_qc/qc {input.r1} {input.r2}
         """
