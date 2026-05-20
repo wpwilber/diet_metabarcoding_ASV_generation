@@ -13,7 +13,7 @@ conda env create -f envs/snakemake-env.yaml
 conda activate snakemake-env
 ```
 
-2: Add raw fastq files to thee fastq/ directory.
+2: Add raw fastq files to the fastq/ directory.
 
 3: Execute the snakefile.
 

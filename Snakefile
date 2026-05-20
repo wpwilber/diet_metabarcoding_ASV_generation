@@ -3,7 +3,11 @@ ITS1_F = "GATATCCGTTGCCGAGAGTC"
 ITS1_R = "CCGAAGGCGTCAAGGAACAC"
 trnL_F = "GGGCAATCCTGAGCCAA"
 trnL_R = "CCATTGAGTCTCTGCACCTATC"
-
+# Reverse complements:
+ITS1_F_RC = "GACTCTCGGCAACGGATATC"
+ITS1_R_RC = "GTGTTCCTTGACGCCTTCGG"
+trnL_F_RC = "TTGGCTCAGGATTGCCC"
+trnL_R_RC = "GATAGGTGCAGAGACTCAATGG"
 # Auto-discover sample names from fastq directory
 SAMPLES = glob_wildcards("fastq/{sample}_R1_001.fastq.gz").sample
 
@@ -13,8 +17,8 @@ SAMPLES = glob_wildcards("fastq/{sample}_R1_001.fastq.gz").sample
 
 rule all:
     input:
-        expand("trim_clean_qc/demux/{sample}_{amp}_{R}.fastq.gz", sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"])
-
+        expand("trim_clean_qc/trimmed/{sample}_{amp}_{R}.primertrim.fastq.gz", sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
+        expand("trim_clean_qc/trimmed_reports/{sample}_{amp}_cutadapt.txt", sample=SAMPLES, amp=["ITS1","trnL"])
 ############################################
 # DEMULTIPLEXING
 ############################################
@@ -26,7 +30,7 @@ rule demux_by_primer:
         r1 = "fastq/{sample}_R1_001.fastq.gz",
         r2 = "fastq/{sample}_R2_001.fastq.gz"
     output:
-        ITS1_r1 = "trim_clean_qc/demux/{sample}_ITS1_R1.fastq.gz",
+        ITS1_r1 = "trim_cleean_qc/demux/{sample}_ITS1_R1.fastq.gz",
         ITS1_r2 = "trim_clean_qc/demux/{sample}_ITS1_R2.fastq.gz",
         trnL_r1 = "trim_clean_qc/demux/{sample}_trnL_R1.fastq.gz",
         trnL_r2 = "trim_clean_qc/demux/{sample}_trnL_R2.fastq.gz",
@@ -53,3 +57,38 @@ rule demux_by_primer:
             {input.r1} {input.r2}
         """
 
+############################################
+# TRIMMING
+############################################
+# This rule trims primers from the forward and reverse reads using identical error allowance as was permitted by demuxing (10% error for each primer and unanchored primer locations). Because the target amplicons are short, targets are sequenced beyond the length of the amplicon. To isolate the amplicon, I trim from the forward primer to the reverse complement of the reverse primer on R1, and from the reverse primer to the reverse complement of the forward primer on R2. Reads that do not contain both primers at the allowed error rate are discarded. Additionally, strict N filtering is applied so that variable regions with ambiguous bases are filtered from the data set. N filtering occurs after trimming so that sequences are not discarded on the basis of low quality tails. Filtering and trimming results for each sample can be found in trim_clean_qc/trimmed_reports. 
+rule trim_primers_cutadapt:
+    conda: "envs/cutadapt.yaml"
+    input:
+        r1 = "trim_clean_qc/demux/{sample}_{amp}_R1.fastq.gz",
+        r2 = "trim_clean_qc/demux/{sample}_{amp}_R2.fastq.gz"
+    output:
+        r1_trim = "trim_clean_qc/trimmed/{sample}_{amp}_R1.primertrim.fastq.gz",
+        r2_trim = "trim_clean_qc/trimmed/{sample}_{amp}_R2.primertrim.fastq.gz",
+        report = "trim_clean_qc/trimmed_reports/{sample}_{amp}_cutadapt.txt"
+    threads: 4
+    params:
+        F = lambda wc: {"ITS1": ITS1_F, "trnL": trnL_F}[wc.amp],
+        R = lambda wc: {"ITS1": ITS1_R, "trnL": trnL_R}[wc.amp],
+        F_RC = lambda wc: {"ITS1": ITS1_F_RC, "trnL": trnL_F_RC}[wc.amp],
+        R_RC = lambda wc: {"ITS1": ITS1_R_RC, "trnL": trnL_R_RC}[wc.amp]
+    shell:
+        r"""
+        mkdir -p trim_clean_qc/trimmed trim_clean_qc/trimmed_reports
+
+        cutadapt \
+            -j {threads} \
+            -e 0.10 \
+            -g "{params.F}...{params.R_RC}" \
+            -G "{params.R}...{params.F_RC}" \
+            --discard-untrimmed \
+            --max-n 0 \
+            -o {output.r1_trim} \
+            -p {output.r2_trim} \
+            {input.r1} {input.r2} \
+            > {output.report} 2>&1
+        """
