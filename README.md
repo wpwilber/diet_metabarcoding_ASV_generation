@@ -2,7 +2,7 @@ This is a component of the final pipeline for handling data from the diet metaba
 
 Reproducing this analysis requires Conda and a Unix environment.
 
-This project is designed for HPC deployment on the Notre Dame CRC using the Univa Grid Engine job scheduler. This can be adapted for use on SLURM or other schedulers through modification to the snakemake profile found under /profiles/hpc/config.yaml. 
+This project is designed for HPC deployment on the Notre Dame CRC using the Univa Grid Engine job scheduler. This can be adapted for use on SLURM or other schedulers through modification to the snakemake profile found under /profiles/hpc/config.yaml. It will also execute on compatible local systems through use of the local profile. 
 
 How to execute this pipeline:
 
