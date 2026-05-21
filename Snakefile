@@ -32,7 +32,7 @@ rule demux_by_primer:
         r1 = "fastq/{sample}_R1_001.fastq.gz",
         r2 = "fastq/{sample}_R2_001.fastq.gz"
     output:
-        ITS1_r1 = "trim_cleean_qc/demux/{sample}_ITS1_R1.fastq.gz",
+        ITS1_r1 = "trim_clean_qc/demux/{sample}_ITS1_R1.fastq.gz",
         ITS1_r2 = "trim_clean_qc/demux/{sample}_ITS1_R2.fastq.gz",
         trnL_r1 = "trim_clean_qc/demux/{sample}_trnL_R1.fastq.gz",
         trnL_r2 = "trim_clean_qc/demux/{sample}_trnL_R2.fastq.gz",
@@ -116,3 +116,40 @@ rule fastqc_final:
         r"""
         fastqc --threads {threads} --outdir trim_clean_qc/qc {input.r1} {input.r2}
         """
+
+############################################
+# ASV inference
+############################################
+# The following rules run DADA2 ASV inference on trimmed and filtered fastq files described above. For detailed comments on the DADA2 workflow, reference the script in scripts/run_dada2_{amp}.R. 
+rule dada2_trnl:
+    conda: "envs/DADA2.yaml"
+    input:
+        expand("trim_clean_qc/trimmed/{sample}_trnL_R1.primertrim.fastq.gz", sample=SAMPLES),
+        expand("trim_clean_qc/trimmed/{sample}_trnL_R2.primertrim.fastq.gz", sample=SAMPLES)
+    output:
+        tsv = "dada2/trnL_seqtab_all.tsv",
+        fasta = "dada2/trnL_ASVs.fasta"
+    threads: 8
+    shell:
+        r"""
+        mkdir -p dada2
+        Rscript scripts/run_dada2_trnL.R
+        """
+
+# The following rule runs DADA2 sample inference on ITS1 samples.
+
+rule dada2_its1:
+    conda: "envs/DADA2.yaml"
+    input:
+        expand("trim_clean_qc/trimmed/{sample}_ITS1_R1.primertrim.fastq.gz", sample=SAMPLES),
+        expand("trim_clean_qc/trimmed/{sample}_ITS1_R2.primertrim.fastq.gz", sample=SAMPLES)
+    output:
+        tsv = "dada2/ITS1_seqtab_all.tsv",
+        fasta = "dada2/ITS1_ASVs.fasta"
+    threads: 8
+    shell:
+        r"""     
+        mkdir -p dada2
+        Rscript scripts/run_dada2_ITS1.R
+        """
+
