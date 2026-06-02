@@ -13,13 +13,25 @@ conda env create -f envs/snakemake-env.yaml
 conda activate snakemake-env
 ```
 
-2: Add raw fastq files to the fastq/ directory.
+2: Add raw fastq files to the fastq/ directory organized into subdirectories by sequencing run number. This pipeline was designed for a sequencing project of 16 runs that were processed individually. This allows for run specific error modeling in DADA2. 
+
+Example directory structure:
+```
+mkdir fastq/Run_01 fastq/Run_02
+```
 
 3: Execute the snakefile.
 
 ```
-snakemake --profile profiles/hpc --jobs 20
+snakemake --profile profiles/hpc --jobs 20 --config project=Run_name
 ```
-The job number specified when running on hpc is dependent on local etiquette. The number of simultaneous jobs can scale as high as the number of fasta files you are processing. 
+Run_name is the name of the sequencing run specific subdirectory. Each run is processed individually. 
+
+For example, given the example directory structure above you would first run:
+```
+snakemake --profile profiles/hpc --jobs 20 --config project=Run_01
+```
+
+The job number specified when running on HPC is dependent on local etiquette. The number of simultaneous jobs can scale as high as the number of fasta files you are processing. 
 
 Contact Willi Wilber (wwilber@nd.edu) for support in reproducing this analysis. 

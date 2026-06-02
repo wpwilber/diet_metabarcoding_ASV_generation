@@ -9,7 +9,8 @@ ITS1_R_RC = "GTGTTCCTTGACGCCTTCGG"
 trnL_F_RC = "TTGGCTCAGGATTGCCC"
 trnL_R_RC = "GATAGGTGCAGAGACTCAATGG"
 # Auto-discover sample names from fastq directory
-SAMPLES = glob_wildcards("fastq/{sample}_R1_001.fastq.gz").sample
+PROJECT = config["project"]
+SAMPLES = glob_wildcards(f"fastq/{PROJECT}" + "/{sample}_R1_001.fastq.gz").sample 
 
 ############################################
 # FINAL TARGET
@@ -17,10 +18,15 @@ SAMPLES = glob_wildcards("fastq/{sample}_R1_001.fastq.gz").sample
 
 rule all:
     input:
-        expand("trim_clean_qc/trimmed/{sample}_{amp}_{R}.primertrim.fastq.gz", sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
-        expand("trim_clean_qc/trimmed_reports/{sample}_{amp}_cutadapt.txt", sample=SAMPLES, amp=["ITS1","trnL"]),
-        expand("trim_clean_qc/qc/{sample}_{amp}_{R}.primertrim_fastqc.html", sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
-        expand("trim_clean_qc/qc/{sample}_{amp}_{R}.primertrim_fastqc.zip", sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"])
+        expand(f"trim_clean_qc/{PROJECT}/trimmed/{{sample}}_{{amp}}_{{R}}.primertrim.fastq.gz",
+               sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
+        expand(f"trim_clean_qc/{PROJECT}/trimmed_reports/{{sample}}_{{amp}}_cutadapt.txt",
+               sample=SAMPLES, amp=["ITS1","trnL"]),
+        expand(f"trim_clean_qc/{PROJECT}/qc/{{sample}}_{{amp}}_{{R}}.primertrim_fastqc.html",
+               sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
+        expand(f"trim_clean_qc/{PROJECT}/qc/{{sample}}_{{amp}}_{{R}}.primertrim_fastqc.zip",
+               sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"])
+
 ############################################
 # DEMULTIPLEXING
 ############################################
@@ -29,15 +35,15 @@ rule all:
 rule demux_by_primer:
     conda: "envs/cutadapt.yaml"
     input:
-        r1 = "fastq/{sample}_R1_001.fastq.gz",
-        r2 = "fastq/{sample}_R2_001.fastq.gz"
+        r1 = f"fastq/{PROJECT}" + "/{sample}_R1_001.fastq.gz",
+        r2 = f"fastq/{PROJECT}" + "/{sample}_R2_001.fastq.gz"
     output:
-        ITS1_r1 = "trim_clean_qc/demux/{sample}_ITS1_R1.fastq.gz",
-        ITS1_r2 = "trim_clean_qc/demux/{sample}_ITS1_R2.fastq.gz",
-        trnL_r1 = "trim_clean_qc/demux/{sample}_trnL_R1.fastq.gz",
-        trnL_r2 = "trim_clean_qc/demux/{sample}_trnL_R2.fastq.gz",
-        un_r1   = "trim_clean_qc/demux/{sample}_unassigned_R1.fastq.gz",
-        un_r2   = "trim_clean_qc/demux/{sample}_unassigned_R2.fastq.gz"
+        ITS1_r1 = f"trim_clean_qc/{PROJECT}" + "/demux/{sample}_ITS1_R1.fastq.gz",
+        ITS1_r2 = f"trim_clean_qc/{PROJECT}" + "/demux/{sample}_ITS1_R2.fastq.gz",
+        trnL_r1 = f"trim_clean_qc/{PROJECT}" + "/demux/{sample}_trnL_R1.fastq.gz",
+        trnL_r2 = f"trim_clean_qc/{PROJECT}" + "/demux/{sample}_trnL_R2.fastq.gz",
+        un_r1   = f"trim_clean_qc/{PROJECT}" + "/demux/{sample}_unassigned_R1.fastq.gz",
+        un_r2   = f"trim_clean_qc/{PROJECT}" + "/demux/{sample}_unassigned_R2.fastq.gz"
     threads: 8
     shell:
         r"""
@@ -54,24 +60,24 @@ rule demux_by_primer:
             --untrimmed-output        {output.un_r1} \
             --untrimmed-paired-output {output.un_r2} \
             \
-            -o trim_clean_qc/demux/{wildcards.sample}_{{name}}_R1.fastq.gz \
-            -p trim_clean_qc/demux/{wildcards.sample}_{{name}}_R2.fastq.gz \
+            -o trim_clean_qc/{PROJECT}/demux/{wildcards.sample}_{{name}}_R1.fastq.gz \
+            -p trim_clean_qc/{PROJECT}/demux/{wildcards.sample}_{{name}}_R2.fastq.gz \
             {input.r1} {input.r2}
         """
 
 ############################################
 # TRIMMING
 ############################################
-# This rule trims primers from the forward and reverse reads using identical error allowance as was permitted by demuxing (10% error for each primer and unanchored primer locations). Because the target amplicons are short, targets are sequenced beyond the length of the amplicon. To isolate the amplicon, I trim from the forward primer to the reverse complement of the reverse primer on R1, and from the reverse primer to the reverse complement of the forward primer on R2. Reads that do not contain both primers at the allowed error rate are discarded. Strict N filtering is applied so that variable regions with ambiguous bases are filtered from the data set. A modest minimum length is also applied that helps to remove a few outlying erroneous reads that were identified during quality assessment. Filtering occurs after trimming so that sequences are not discarded on the basis of low quality tails and real biological variation in target amplicon length is preserved. Quality filtering is not handled here and is instead handled by DADA2 during ASV inference as this information may improve DADA2's results. Filtering and trimming results for each sample can be found in trim_clean_qc/trimmed_reports. 
+# This rule trims primers from the forward and reverse reads using identical error allowance as was permitted by demuxing (10% error for each primer and unanchored primer locations). Because the target amplicons are short, targets are sequenced beyond the length of the amplicon. To isolate the amplicon, I trim from the forward primer to the reverse complement of the reverse primer on R1, and from the reverse primer to the reverse complement of the forward primer on R2. Reads that do not contain both primers at the allowed error rate are discarded. Strict N filtering is applied so that variable regions with ambiguous bases are filtered from the data set. Quality filtering is applied with max expected errors of 2 for any paired read. A modest minimum length is also applied that helps to remove a few outlying erroneous reads that were identified during quality assessment. Filtering occurs after trimming so that sequences are not discarded on the basis of low quality tails and real biological variation in target amplicon length is preserved. Filtering and trimming results for each sample can be found in trim_clean_qc/trimmed_reports. 
 rule trim_primers_cutadapt:
     conda: "envs/cutadapt.yaml"
     input:
-        r1 = "trim_clean_qc/demux/{sample}_{amp}_R1.fastq.gz",
-        r2 = "trim_clean_qc/demux/{sample}_{amp}_R2.fastq.gz"
+        r1 = f"trim_clean_qc/{PROJECT}" + "/demux/{sample}_{amp}_R1.fastq.gz",
+        r2 = f"trim_clean_qc/{PROJECT}" + "/demux/{sample}_{amp}_R2.fastq.gz"
     output:
-        r1_trim = "trim_clean_qc/trimmed/{sample}_{amp}_R1.primertrim.fastq.gz",
-        r2_trim = "trim_clean_qc/trimmed/{sample}_{amp}_R2.primertrim.fastq.gz",
-        report = "trim_clean_qc/trimmed_reports/{sample}_{amp}_cutadapt.txt"
+        r1_trim = f"trim_clean_qc/{PROJECT}" + "/trimmed/{sample}_{amp}_R1.primertrim.fastq.gz",
+        r2_trim = f"trim_clean_qc/{PROJECT}" + "/trimmed/{sample}_{amp}_R2.primertrim.fastq.gz",
+        report = f"trim_clean_qc/{PROJECT}" + "/trimmed_reports/{sample}_{amp}_cutadapt.txt"
     threads: 4
     params:
         F = lambda wc: {"ITS1": ITS1_F, "trnL": trnL_F}[wc.amp],
@@ -81,8 +87,7 @@ rule trim_primers_cutadapt:
         min_len = lambda wc: {"ITS1": 50, "trnL": 10}[wc.amp]
     shell:
         r"""
-        mkdir -p trim_clean_qc/trimmed trim_clean_qc/trimmed_reports
-
+        mkdir -p trim_clean_qc/{PROJECT}/trimmed trim_clean_qc/{PROJECT}/trimmed_reports
         cutadapt \
             -j {threads} \
             -e 0.10 \
@@ -90,6 +95,8 @@ rule trim_primers_cutadapt:
             -G "{params.R}...{params.F_RC}" \
             --discard-untrimmed \
             --max-n 0 \
+            --max-ee 2 \
+            --pair-filter any \
             --minimum-length {params.min_len} \
             -o {output.r1_trim} \
             -p {output.r2_trim} \
@@ -104,17 +111,18 @@ rule trim_primers_cutadapt:
 rule fastqc_final:
     conda: "envs/fastqc.yaml"
     input:
-        r1 = "trim_clean_qc/trimmed/{sample}_{amp}_R1.primertrim.fastq.gz",
-        r2 = "trim_clean_qc/trimmed/{sample}_{amp}_R2.primertrim.fastq.gz"
+        r1 = f"trim_clean_qc/{PROJECT}" + "/trimmed/{sample}_{amp}_R1.primertrim.fastq.gz",
+        r2 = f"trim_clean_qc/{PROJECT}" + "/trimmed/{sample}_{amp}_R2.primertrim.fastq.gz"
     output:
-        "trim_clean_qc/qc/{sample}_{amp}_R1.primertrim_fastqc.html",
-        "trim_clean_qc/qc/{sample}_{amp}_R1.primertrim_fastqc.zip",
-        "trim_clean_qc/qc/{sample}_{amp}_R2.primertrim_fastqc.html",
-        "trim_clean_qc/qc/{sample}_{amp}_R2.primertrim_fastqc.zip"
+        f"trim_clean_qc/{PROJECT}" + "/qc/{sample}_{amp}_R1.primertrim_fastqc.html",
+        f"trim_clean_qc/{PROJECT}" + "/qc/{sample}_{amp}_R1.primertrim_fastqc.zip",
+        f"trim_clean_qc/{PROJECT}" + "/qc/{sample}_{amp}_R2.primertrim_fastqc.html",
+        f"trim_clean_qc/{PROJECT}" + "/qc/{sample}_{amp}_R2.primertrim_fastqc.zip"
     threads: 2
     shell:
         r"""
-        fastqc --threads {threads} --outdir trim_clean_qc/qc {input.r1} {input.r2}
+        mkdir -p trim_clean_qc/{PROJECT}/qc
+        fastqc --threads {threads} --outdir trim_clean_qc/{PROJECT}/qc {input.r1} {input.r2}
         """
 
 ############################################
