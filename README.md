@@ -31,7 +31,26 @@ For example, given the example directory structure above you would first run:
 ```
 snakemake --profile profiles/hpc --jobs 20 --config project=Run_01
 ```
-
 The job number specified when running on HPC is dependent on local etiquette. The number of simultaneous jobs can scale as high as the number of fasta files you are processing. 
+
+4: Merge ASV tables and remove chimeras for each marker
+
+```
+qsub -N merge_chim_ITS1 scripts/merge_chim.sh ITS1
+qsub -N merge_chim_trnL scripts/merge_chim.sh trnL
+```
+Revise the subission script as necessary to specify your own local dada2 environment and HPC credentials. A dada2 environment can be created from the included yaml:
+```
+conda env create -f envs/dada2.yaml
+```
+
+If running locally you can run the R scripts directly
+
+```
+Rscript scripts/merge_runs_remove_chimera.R ITS1
+Rscript scripts/merge_runs_remove_chimera.R trnL
+```
+
+This finishing step can only be completed after ASVs have been generated for each sequencing run.
 
 Contact Willi Wilber (wwilber@nd.edu) for support in reproducing this analysis. 
