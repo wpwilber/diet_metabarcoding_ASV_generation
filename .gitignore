@@ -6,4 +6,5 @@ dada2/*
 .Rhistory
 logs/*
 trim_clean_qc/*
+dada2_merged/*
 scripts/.Rapp.history

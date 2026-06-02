@@ -18,14 +18,14 @@ SAMPLES = glob_wildcards(f"fastq/{PROJECT}" + "/{sample}_R1_001.fastq.gz").sampl
 
 rule all:
     input:
-        expand(f"trim_clean_qc/{PROJECT}/trimmed/{{sample}}_{{amp}}_{{R}}.primertrim.fastq.gz",
-               sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
-        expand(f"trim_clean_qc/{PROJECT}/trimmed_reports/{{sample}}_{{amp}}_cutadapt.txt",
-               sample=SAMPLES, amp=["ITS1","trnL"]),
+        # Quality control after trimming
         expand(f"trim_clean_qc/{PROJECT}/qc/{{sample}}_{{amp}}_{{R}}.primertrim_fastqc.html",
                sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
         expand(f"trim_clean_qc/{PROJECT}/qc/{{sample}}_{{amp}}_{{R}}.primertrim_fastqc.zip",
-               sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"])
+               sample=SAMPLES, amp=["ITS1","trnL"], R=["R1","R2"]),
+        # DADA2 output
+        expand(f"dada2/{PROJECT}" + "/{amp}/seqtab.rds", amp=["ITS1", "trnL"]),
+        expand(f"dada2/{PROJECT}" + "/{amp}/read_retention.csv", amp=["ITS1", "trnL"])
 
 ############################################
 # DEMULTIPLEXING
@@ -129,35 +129,28 @@ rule fastqc_final:
 # ASV inference
 ############################################
 # The following rules run DADA2 ASV inference on trimmed and filtered fastq files described above. For detailed comments on the DADA2 workflow, reference the script in scripts/run_dada2_{amp}.R. 
-rule dada2_trnl:
-    conda: "envs/DADA2.yaml"
-    input:
-        expand("trim_clean_qc/trimmed/{sample}_trnL_R1.primertrim.fastq.gz", sample=SAMPLES),
-        expand("trim_clean_qc/trimmed/{sample}_trnL_R2.primertrim.fastq.gz", sample=SAMPLES)
-    output:
-        tsv = "dada2/trnL_seqtab_all.tsv",
-        fasta = "dada2/trnL_ASVs.fasta"
-    threads: 8
-    shell:
-        r"""
-        mkdir -p dada2
-        Rscript scripts/run_dada2_trnL.R
-        """
 
 # The following rule runs DADA2 sample inference on ITS1 samples.
 
-rule dada2_its1:
-    conda: "envs/DADA2.yaml"
+rule dada2_sample_inference:
+    conda: "envs/dada2.yaml"
     input:
-        expand("trim_clean_qc/trimmed/{sample}_ITS1_R1.primertrim.fastq.gz", sample=SAMPLES),
-        expand("trim_clean_qc/trimmed/{sample}_ITS1_R2.primertrim.fastq.gz", sample=SAMPLES)
+        r1 = lambda wc: expand(
+            f"trim_clean_qc/{PROJECT}/trimmed/{{sample}}_{wc.amp}_R1.primertrim.fastq.gz",
+            sample=SAMPLES
+        ),
+        r2 = lambda wc: expand(
+            f"trim_clean_qc/{PROJECT}/trimmed/{{sample}}_{wc.amp}_R2.primertrim.fastq.gz",
+            sample=SAMPLES
+        )
     output:
-        tsv = "dada2/ITS1_seqtab_all.tsv",
-        fasta = "dada2/ITS1_ASVs.fasta"
+        seqtab = f"dada2/{PROJECT}" + "/{amp}/seqtab.rds",
+        track = f"dada2/{PROJECT}" + "/{amp}/read_retention.csv"
+    params:
+        project = PROJECT
     threads: 8
     shell:
-        r"""     
-        mkdir -p dada2
-        Rscript scripts/run_dada2_ITS1.R
+        r"""
+        Rscript scripts/dada2_sample_inference.R {params.project} {wildcards.amp}
         """
 
