@@ -28,6 +28,16 @@ rule all:
         expand(f"dada2/{PROJECT}" + "/{amp}/read_retention.csv", amp=["ITS1", "trnL"])
 
 ############################################
+# HOOKS
+############################################
+
+onsuccess:
+    shell("echo 'Workflow finished successfully.' | mail -s 'Snakemake: Done' wwilber@nd.edu")
+
+onerror:
+    shell("echo 'Workflow failed. See log: {log}' | mail -s 'Snakemake: ERROR' wwilber@nd.edu")
+
+############################################
 # DEMULTIPLEXING
 ############################################
 # Demultiplexing in this case refers to separating fastq files by the target amplicon that was sequenced. This is accomplished through pattern matching of the ITS1 or trnL forward primer defined at the head of this file. This is processed in paired end mode, such that R2 is retained when the forward primer is recognized in the paired R1. Up to 10% error rate in matching the defined forward primer is allowed (defined by -e). Read pairs that do not contain either forward primer are separated into "unnasigned" files. Forward primer matching is unanchored so that reads that do not start precisely on the forward primer are still retained. 
