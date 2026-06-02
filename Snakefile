@@ -130,8 +130,6 @@ rule fastqc_final:
 ############################################
 # The following rules run DADA2 ASV inference on trimmed and filtered fastq files described above. For detailed comments on the DADA2 workflow, reference the script in scripts/run_dada2_{amp}.R. 
 
-# The following rule runs DADA2 sample inference on ITS1 samples.
-
 rule dada2_sample_inference:
     conda: "envs/dada2.yaml"
     input:
