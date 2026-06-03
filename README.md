@@ -25,13 +25,21 @@ mkdir fastq/Run_01 fastq/Run_02
 ```
 snakemake --profile profiles/hpc --jobs 20 --config project=Run_name
 ```
-Run_name is the name of the sequencing run specific subdirectory. Each run is processed individually. 
+Modify project parameter to the name of the sequencing run specific subdirectory. Each run should be processed individually. 
 
 For example, given the example directory structure above you would first run:
 ```
 snakemake --profile profiles/hpc --jobs 20 --config project=Run_01
 ```
 The job number specified when running on HPC is dependent on local etiquette. The number of simultaneous jobs can scale as high as the number of fasta files you are processing. 
+
+Running a complete workflow can take a long time so it is best used with tmux or screen. For example:
+```
+tmux new -s snakemake_run
+snakemake --profile profiles/hpc --jobs 20 --config project=Run_01
+Ctrl+B, then D
+tmux attach -t snakemake_run
+```
 
 4: Merge ASV tables and remove chimeras for each marker
 
