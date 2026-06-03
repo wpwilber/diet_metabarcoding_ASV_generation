@@ -36,6 +36,7 @@ The job number specified when running on HPC is dependent on local etiquette. Th
 Running a complete workflow can take a long time so it is best used with tmux or screen. For example:
 ```
 tmux new -s snakemake_run
+conda activate snakemake-env
 snakemake --profile profiles/hpc --jobs 20 --config project=Run_01
 Ctrl+B, then D
 tmux attach -t snakemake_run
