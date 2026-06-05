@@ -23,7 +23,16 @@ if (!dir.exists(outdir)) {
 
 # Read and merge
 seqtabs <- lapply(seqtab_files, readRDS)
-st.all <- do.call(mergeSequenceTables, seqtabs)
+
+
+# Merge if multiple tables, otherwise use the single table as-is
+if (length(seqtabs) == 1) {
+  st.all <- seqtabs[[1]]
+  cat("Only one seqtab file found; skipping mergeSequenceTables().\n")
+} else {
+  st.all <- do.call(mergeSequenceTables, seqtabs)
+  cat("Merged", length(seqtabs), "sequence tables.\n")
+}
 
 # Remove chimeras
 seqtab.nochim <- removeBimeraDenovo(st.all, method = "consensus", multithread = TRUE)
