@@ -154,11 +154,15 @@ rule dada2_sample_inference:
     output:
         seqtab = f"dada2/{PROJECT}" + "/{amp}/seqtab.rds",
         track = f"dada2/{PROJECT}" + "/{amp}/read_retention.csv"
+    log:
+        f"logs/dada2/{PROJECT}" + "/{amp}.log"
     params:
         project = PROJECT
     threads: 8
     shell:
         r"""
-        Rscript scripts/dada2_sample_inference.R {params.project} {wildcards.amp}
+        mkdir -p logs/dada2/{params.project}
+        Rscript scripts/dada2_sample_inference.R {params.project} {wildcards.amp} \
+          > {log} 2>&1
         """
 

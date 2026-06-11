@@ -1,13 +1,19 @@
 library(dada2); packageVersion("dada2")
 
 # Define arguments
-if (interactive()) {
-  project <- "Archie_Project_034"
-  amp <- "ITS1"
-} else {
-  project <- args[1]
-  amp <- args[2]
+cmd_args <- commandArgs(trailingOnly = TRUE)
+
+if (length(cmd_args) != 2) {
+  stop("Usage: Rscript dada2_sample_inference.R <project> <amp>")
 }
+
+project <- cmd_args[1]
+amp <- cmd_args[2]
+
+cat("project =", project, "\n")
+cat("amp =", amp, "\n")
+cat("dada2 version =", as.character(packageVersion("dada2")), "\n")
+
 
 # Warnings
 if (is.na(project) || project == "") {
