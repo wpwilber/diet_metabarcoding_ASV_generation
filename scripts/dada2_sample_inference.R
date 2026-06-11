@@ -1,9 +1,13 @@
 library(dada2); packageVersion("dada2")
 
 # Define arguments
-args <- commandArgs(trailingOnly = TRUE)
-project <- args[1]
-amp <- args[2]
+if (interactive()) {
+  project <- "Archie_Project_034"
+  amp <- "ITS1"
+} else {
+  project <- args[1]
+  amp <- args[2]
+}
 
 # Warnings
 if (is.na(project) || project == "") {
@@ -51,8 +55,8 @@ names(filtRs) <- sample_names
 set.seed(100)
 
 # Learn error rates
-errF <- learnErrors(filtFs, nbases=1e8, multithread=TRUE)
-errR <- learnErrors(filtRs, nbases=1e8, multithread=TRUE)
+errF <- learnErrors(filtFs, multithread=TRUE, qualityType="FastqQuality")
+errR <- learnErrors(filtRs, multithread=TRUE, qualityType="FastqQuality")
 
 # Visualize estimated error rates
 pdf(file.path(top_outdir, paste0(amp, "_pooled_error_model_forward.pdf")))
@@ -80,8 +84,8 @@ names(mergers) <- sample_names
 for (sam in sample_names) {
   cat("Processing:", sam, "\n")
   
-  derepF <- derepFastq(filtFs[[sam]])
-  derepR <- derepFastq(filtRs[[sam]])
+  derepF <- derepFastq(filtFs[[sam]], qualityType="FastqQuality")
+  derepR <- derepFastq(filtRs[[sam]], qualityType="FastqQuality")
   
   input_counts[sam] <- sum(derepF$uniques)
   
