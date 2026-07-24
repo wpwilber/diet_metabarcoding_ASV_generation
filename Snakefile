@@ -11,6 +11,7 @@ trnL_R_RC = "GATAGGTGCAGAGACTCAATGG"
 # Auto-discover sample names from fastq directory
 PROJECT = config["project"]
 SAMPLES = glob_wildcards(f"fastq/{PROJECT}" + "/{sample}_R1_001.fastq.gz").sample 
+USER_EMAIL = "wwilber@nd.edu"
 
 ############################################
 # FINAL TARGET
@@ -32,10 +33,10 @@ rule all:
 ############################################
 
 onsuccess:
-    shell("echo 'Workflow finished successfully.' | mail -s 'Snakemake: Done' wwilber@nd.edu")
+    shell(f"echo 'Workflow finished successfully.' | mail -s 'Snakemake: Done' {USER_EMAIL}")
 
 onerror:
-    shell("echo 'Workflow failed. See log: {log}' | mail -s 'Snakemake: ERROR' wwilber@nd.edu")
+    shell(f"echo 'Workflow failed.' | mail -s 'Snakemake: ERROR' {USER_EMAIL}")
 
 ############################################
 # DEMULTIPLEXING
