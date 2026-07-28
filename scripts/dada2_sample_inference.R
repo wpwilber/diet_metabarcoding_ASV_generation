@@ -87,26 +87,45 @@ mergers <- vector("list", length(sample_names))
 names(mergers) <- sample_names
 
 # Sample inference and merge paired-end reads
+valid_samples <- character(0)
+
 for (sam in sample_names) {
   cat("Processing:", sam, "\n")
   
-  derepF <- derepFastq(filtFs[[sam]], qualityType="FastqQuality")
-  derepR <- derepFastq(filtRs[[sam]], qualityType="FastqQuality")
+  ok <- tryCatch({
+    derepF <- derepFastq(filtFs[[sam]], qualityType = "FastqQuality")
+    derepR <- derepFastq(filtRs[[sam]], qualityType = "FastqQuality")
+    
+    input_counts[sam] <- sum(derepF$uniques)
+    
+    ddF <- dada(derepF, err = errF, multithread = TRUE)
+    ddR <- dada(derepR, err = errR, multithread = TRUE)
+    
+    denoisedF_counts[sam] <- getN(ddF)
+    denoisedR_counts[sam] <- getN(ddR)
+    
+    mergers[[sam]] <- mergePairs(ddF, derepF, ddR, derepR)
+    merged_counts[sam] <- getN(mergers[[sam]])
+    
+    rm(derepF, derepR, ddF, ddR)
+    gc(verbose = FALSE)
+    
+    TRUE
+  }, error = function(e) {
+    message("Skipping sample ", sam, ": ", conditionMessage(e))
+    mergers[[sam]] <<- NULL
+    input_counts[sam] <<- NA
+    denoisedF_counts[sam] <<- NA
+    denoisedR_counts[sam] <<- NA
+    merged_counts[sam] <<- NA
+    FALSE
+  })
   
-  input_counts[sam] <- sum(derepF$uniques)
-  
-  ddF <- dada(derepF, err = errF, multithread = TRUE)
-  ddR <- dada(derepR, err = errR, multithread = TRUE)
-  
-  denoisedF_counts[sam] <- getN(ddF)
-  denoisedR_counts[sam] <- getN(ddR)
-  
-  mergers[[sam]] <- mergePairs(ddF, derepF, ddR, derepR)
-  merged_counts[sam] <- getN(mergers[[sam]])
-  
-  rm(derepF, derepR, ddF, ddR)
-  gc(verbose = FALSE)
+  if (isTRUE(ok)) {
+    valid_samples <- c(valid_samples, sam)
+  }
 }
+
 
 # Build read retention table
 track <- data.frame(
@@ -119,10 +138,13 @@ track <- data.frame(
 
 write.csv(track, file.path(top_outdir, "read_retention.csv"), row.names = TRUE)
 
+mergers_ok <- mergers[valid_samples]
+
+if (length(mergers_ok) == 0) {
+  stop("No samples produced merged reads; seqtab cannot be created.")
+}
+
 # Build sequence table
-seqtab <- makeSequenceTable(mergers)
+seqtab <- makeSequenceTable(mergers_ok)
 saveRDS(seqtab, file.path(top_outdir, "seqtab.rds"))
 
-# Optional cleanup
-rm(mergers)
-gc(verbose = FALSE)
