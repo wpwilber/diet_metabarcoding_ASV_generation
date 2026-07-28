@@ -37,6 +37,22 @@ if (length(seqtabs) == 1) {
 # Remove chimeras
 seqtab.nochim <- removeBimeraDenovo(st.all, method = "consensus", multithread = TRUE)
 
+# Remove chimeras
+seqtab.nochim <- removeBimeraDenovo(st.all, method = "consensus", multithread = TRUE)
+
+# Per-sample troubleshooting summary
+sample_track <- data.frame(
+  Sample = rownames(st.all),
+  Reads_before_chimera = rowSums(st.all),
+  Reads_after_chimera = rowSums(seqtab.nochim),
+  Percent_retained = round(100 * rowSums(seqtab.nochim) / rowSums(st.all), 2),
+  stringsAsFactors = FALSE
+)
+
+write.csv(sample_track,
+          file.path(outdir, "sample_chimera_tracking.csv"),
+          row.names = FALSE, quote = FALSE)
+
 # Save core R objects
 saveRDS(st.all, file.path(outdir, "seqtab_merged.rds"))
 saveRDS(seqtab.nochim, file.path(outdir, "seqtab_merged_nochim.rds"))
